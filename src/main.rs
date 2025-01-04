@@ -9,22 +9,30 @@ représentant l'adresse. Implémentez les traits Display et Debug pour cette str
 
 use std::fmt;
 
+const LEGACY_PREFIX: char = '1';
+const P2SH_PREFIX: char = '3';
+const BECH32_PREFIX: &str = "bc1";
+
 struct BitcoinAddress {
     value: String,
 }
 impl BitcoinAddress {
+    pub fn new(value: String) -> Self {
+        Self { value }
+    }
+
     fn is_valid(&self) -> bool {
-        if self.value.chars().count() <= 0 {
+        if self.value.is_empty() {
             return false;
         }
 
-        match self.value.chars().nth(0).unwrap() {
-            '1' => return true,
-            '3' => return true,
-            _ => {
-                return &self.value[..3] == "bc1";
-            }
-        }
+        self.value
+            .chars()
+            .next()
+            .map_or(false, |first_char| match first_char {
+                LEGACY_PREFIX | P2SH_PREFIX => true,
+                _ => self.value.starts_with(BECH32_PREFIX),
+            })
     }
 }
 impl fmt::Display for BitcoinAddress {
@@ -47,32 +55,31 @@ impl fmt::Debug for BitcoinAddress {
     }
 }
 
-fn main() {
-    // Valid cases
-    let valid_address1 = BitcoinAddress {
-        value: String::from("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"),
-    };
-    let valid_address2 = BitcoinAddress {
-        value: String::from("3A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"),
-    };
-    let valid_address3 = BitcoinAddress {
-        value: String::from("bc1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"),
-    };
-    std::assert_eq!(valid_address1.is_valid(), true);
-    std::assert_eq!(valid_address2.is_valid(), true);
-    std::assert_eq!(valid_address3.is_valid(), true);
-    println!("{:?}", valid_address1);
-    println!("{:?}", valid_address2);
-    println!("{:?}", valid_address3);
-    // Invalid case
-    let invalid_address1 = BitcoinAddress {
-        value: String::from(""),
-    };
-    let invalid_address2 = BitcoinAddress {
-        value: String::from("bc2eojfoejfodjoejvodjvovzoe"),
-    };
-    std::assert_eq!(invalid_address1.is_valid(), false);
-    std::assert_eq!(invalid_address2.is_valid(), false);
-    println!("{:?}", invalid_address1);
-    println!("{:?}", invalid_address2);
+fn main() {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_addresses() {
+        let addresses = vec![
+            "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+            "3A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+            "bc1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+        ];
+
+        for addr in addresses {
+            assert!(BitcoinAddress::new(addr.to_string()).is_valid());
+        }
+    }
+
+    #[test]
+    fn test_invalid_addresses() {
+        let addresses = vec!["", "bc2eojfoejfodjoejvodjvovzoe"];
+
+        for addr in addresses {
+            assert!(!BitcoinAddress::new(addr.to_string()).is_valid());
+        }
+    }
 }
